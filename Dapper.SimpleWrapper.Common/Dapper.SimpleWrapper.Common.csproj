@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>Alderis Shyti</Authors>
+    <Company />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dapper.SimpleWrapper.Abstractions\Dapper.SimpleWrapper.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

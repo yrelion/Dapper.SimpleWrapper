@@ -5,6 +5,10 @@ VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dapper.SimpleWrapper", "Dapper.SimpleWrapper\Dapper.SimpleWrapper.csproj", "{A4CCB3B6-45C0-4407-B3A5-4D61C673B8BF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dapper.SimpleWrapper.Abstractions", "Dapper.SimpleWrapper.Abstractions\Dapper.SimpleWrapper.Abstractions.csproj", "{4C8FFDAC-71D2-48DA-B779-B57D0298A608}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dapper.SimpleWrapper.Common", "Dapper.SimpleWrapper.Common\Dapper.SimpleWrapper.Common.csproj", "{2D21D3DF-5161-4059-933F-6E294B616ED8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{A4CCB3B6-45C0-4407-B3A5-4D61C673B8BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4CCB3B6-45C0-4407-B3A5-4D61C673B8BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4CCB3B6-45C0-4407-B3A5-4D61C673B8BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C8FFDAC-71D2-48DA-B779-B57D0298A608}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C8FFDAC-71D2-48DA-B779-B57D0298A608}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C8FFDAC-71D2-48DA-B779-B57D0298A608}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C8FFDAC-71D2-48DA-B779-B57D0298A608}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D21D3DF-5161-4059-933F-6E294B616ED8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D21D3DF-5161-4059-933F-6E294B616ED8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D21D3DF-5161-4059-933F-6E294B616ED8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D21D3DF-5161-4059-933F-6E294B616ED8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
