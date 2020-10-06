@@ -89,7 +89,7 @@ namespace Dapper.SimpleWrapper
         }
 
         /// <summary>
-        /// Runs a query returning multiple results via a custom Dapper method
+        /// Runs a query returning multiple filtered results via a custom Dapper method
         /// </summary>
         /// <typeparam name="TResult">The result type</typeparam>
         /// <param name="sql">The SQL query string</param>
@@ -107,7 +107,7 @@ namespace Dapper.SimpleWrapper
         }
 
         /// <summary>
-        /// Runs a query returning multiple results
+        /// Runs a query returning multiple filtered results
         /// </summary>
         /// <typeparam name="TResult">The result type</typeparam>
         /// <param name="sql">The SQL query string</param>
@@ -121,6 +121,30 @@ namespace Dapper.SimpleWrapper
         {
             return await QueryAsyncBase<TResult, IEnumerable<TResult>>((modifiedSql, modifiedParameters) => Connection.QueryAsync<TResult>(modifiedSql, modifiedParameters),
                 sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
+        }
+
+        /// <summary>
+        /// Runs a query returning multiple filtered results along with the total record count present in the database
+        /// </summary>
+        /// <typeparam name="TResult">The result type</typeparam>
+        /// <param name="sql">The SQL query string</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="sql"/> execution</param>
+        /// <param name="options">The <see cref="ListOptions"/> to add to the final SQL query</param>
+        /// <returns>A <see cref="ResultSet{T}"/> of <see cref="TResult"/></returns>
+        protected async Task<ResultSet<TResult>> QueryResultSetAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null,
+            ListOptions options = null)
+            where TResult : class
+        {
+            var items = await QueryAsyncBase<TResult, IEnumerable<TResult>>((modifiedSql, modifiedParameters) => Connection.QueryAsync<TResult>(modifiedSql, modifiedParameters),
+                sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
+
+            var splitSql = sql.Substring(sql.IndexOf("from", StringComparison.OrdinalIgnoreCase));
+            var countSql = $"SELECT COUNT({0}) {splitSql}";
+
+            var count = await Connection.ExecuteScalarAsync<int>(countSql, parameters);
+
+            return new ResultSet<TResult>(items, count);
         }
 
         /// <summary>
@@ -334,7 +358,7 @@ namespace Dapper.SimpleWrapper
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposed && disposing)
-                    Connection.Dispose();
+                Connection.Dispose();
 
             _disposed = true;
         }
