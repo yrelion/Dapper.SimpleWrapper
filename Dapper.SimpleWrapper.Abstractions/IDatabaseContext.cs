@@ -11,6 +11,6 @@ namespace Dapper.SimpleWrapper.Abstractions
         ITransactionContext TransactionContext { get; }
         ITransactionContext BeginTransaction([CallerMemberName] string actionOriginator = null);
         TransactionStatus TryCommitTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
-        TransactionStatus RollbackTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
+        TransactionStatus TryRollbackTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
     }
 }

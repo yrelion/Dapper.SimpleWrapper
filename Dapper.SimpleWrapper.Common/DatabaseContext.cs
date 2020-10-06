@@ -21,7 +21,7 @@ namespace Dapper.SimpleWrapper.Common
 
         public abstract ITransactionContext BeginTransaction([CallerMemberName] string actionOriginator = null);
         public abstract TransactionStatus TryCommitTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
-        public abstract TransactionStatus RollbackTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
+        public abstract TransactionStatus TryRollbackTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
 
         protected virtual void Dispose(bool disposing)
         {
