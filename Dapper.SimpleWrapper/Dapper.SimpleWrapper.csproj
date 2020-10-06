@@ -9,7 +9,6 @@
   <ItemGroup>
     <PackageReference Include="Dapper.Oracle" Version="1.2.1" />
     <PackageReference Include="Indice.Common" Version="1.6.7" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.8" />
   </ItemGroup>
 
   <ItemGroup>
