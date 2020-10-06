@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 using Dapper.SimpleWrapper.Abstractions;
 using Dapper.SimpleWrapper.Common;
@@ -32,23 +31,18 @@ namespace Dapper.SimpleWrapper
         /// <typeparam name="TResult">The result type</typeparam>
         /// <param name="operation">The query function to run</param>
         /// <param name="sql">The SQL query string</param>
-        /// <param name="parameters">The named parameters to build the final query with</param>
-        /// <param name="intermediaryAction">The action to run prior to the <paramref name="operation"/> execution</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="operation"/> execution that manipulates the <see cref="parameters"/> and <see cref="options"/></param>
         /// <param name="options">The <see cref="ListOptions"/> to add to the final SQL query</param>
-        /// <returns>A <see cref="Task"/></returns>
+        /// <param name="queryOptionsAction">The action to run upon the query prior to the <see cref="operation"/> execution that manipulates the <see cref="sql"/></param>
+        /// <returns>The <see cref="TResult"/></returns>
         private async Task<TResult> QueryAsyncBase<TSubject, TResult>(Func<string, DynamicParameters, Task<TResult>> operation, string sql, DynamicParameters parameters = null,
-            Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null)
-            where TSubject : class
-            where TResult : class
+            Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null, Action queryOptionsAction = null)
         {
-
             try
             {
-                parameters = parameters ?? new DynamicParameters();
-                intermediaryAction?.Invoke(parameters, options);
-
-                AttachQueryOptions<TSubject>(ref sql, parameters, options);
-
+                intermediaryAction?.Invoke(parameters ?? new DynamicParameters(), options);
+                queryOptionsAction?.Invoke();
                 LogSqlQuery(sql, parameters);
                 return await operation(sql, parameters);
             }
@@ -60,30 +54,30 @@ namespace Dapper.SimpleWrapper
             }
         }
 
-        protected async Task<IEnumerable<TResult>> QueryExplicitAsync<TResult>(string sql, Func<string, SqlMapper.IDynamicParameters, Task<IEnumerable<TResult>>> function, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null) where TResult : class
-        {
-            return await QueryAsyncBase<TResult, IEnumerable<TResult>>(function, sql, parameters, intermediaryAction, options);
-        }
-
-        protected async Task<IEnumerable<TResult>> QueryAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null) where TResult : class
-        {
-            return await QueryAsyncBase<TResult, IEnumerable<TResult>>((modifiedSql, modifiedParameters) => Connection.QueryAsync<TResult>(modifiedSql, modifiedParameters), sql, parameters, intermediaryAction, options);
-        }
-
-        protected async Task<TResult> QueryFirstAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null) where TResult : class
-        {
-            return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.QueryFirstOrDefaultAsync<TResult>(sql, modifiedParameters), sql, parameters, intermediaryAction);
-        }
-
-        protected async Task<DynamicParameters> ExecuteProcedureAsync(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
+        /// <summary>
+        /// Procedure base method which runs the provided procedure operation given a set of common parameters
+        /// </summary>
+        /// <param name="operation">The command execution function to run</param>
+        /// <param name="command">The SQL Command to execute</param>
+        /// <param name="parameters">The named parameters to feed the command with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="command"/> execution</param>
+        /// <param name="postExecutionAction">The action to run after the <paramref name="command"/> execution</param>
+        /// <returns>The <see cref="CommandExecutionResult"/></returns>
+        private async Task<CommandExecutionResult> ExecuteAsyncBase(Func<Task<int>> operation, string command, DynamicParameters parameters = null,
+            Action<DynamicParameters> intermediaryAction = null, Action<int> postExecutionAction = null)
         {
             try
             {
                 intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSqlOperation(sql, parameters);
-                await Connection.ExecuteAsync(sql, parameters, commandType: CommandType.StoredProcedure);
+                LogSqlOperation(command, parameters);
+                var rowsAffected = await operation.Invoke();
+                postExecutionAction?.Invoke(rowsAffected);
 
-                return parameters;
+                return new CommandExecutionResult
+                {
+                    Parameters = parameters,
+                    RowsAffected = rowsAffected
+                };
             }
             catch (Exception e)
             {
@@ -94,68 +88,123 @@ namespace Dapper.SimpleWrapper
             }
         }
 
-        protected async Task<int> ExecuteAsync(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
+        /// <summary>
+        /// Runs a query returning multiple results via a custom Dapper method
+        /// </summary>
+        /// <typeparam name="TResult">The result type</typeparam>
+        /// <param name="sql">The SQL query string</param>
+        /// <param name="function">The explicit function to run in which a custom Dapper operation may be run</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="sql"/> execution</param>
+        /// <param name="options">The <see cref="ListOptions"/> to add to the final SQL query</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="TResult"/></returns>
+        protected async Task<IEnumerable<TResult>> QueryExplicitAsync<TResult>(string sql, Func<string, SqlMapper.IDynamicParameters, Task<IEnumerable<TResult>>> function,
+            DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null)
+            where TResult : class
         {
-            try
-            {
-                intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSqlOperation(sql, parameters);
-                var rowsAffected = await Connection.ExecuteAsync(sql, parameters);
-
-                return rowsAffected;
-            }
-            catch (Exception e)
-            {
-                HandleException(e);
-                HandleRollback();
-                Connection.Close();
-                return default(int);
-            }
+            return await QueryAsyncBase<TResult, IEnumerable<TResult>>(function,
+                sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
         }
 
-        protected async Task<int> ExecuteSingleAsync(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
+        /// <summary>
+        /// Runs a query returning multiple results
+        /// </summary>
+        /// <typeparam name="TResult">The result type</typeparam>
+        /// <param name="sql">The SQL query string</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="sql"/> execution</param>
+        /// <param name="options">The <see cref="ListOptions"/> to add to the final SQL query</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="TResult"/></returns>
+        protected async Task<IEnumerable<TResult>> QueryAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null,
+            ListOptions options = null)
+            where TResult : class
         {
-            try
-            {
-                intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSqlOperation(sql, parameters);
-                var rowsAffected = await Connection.ExecuteAsync(sql, parameters);
+            return await QueryAsyncBase<TResult, IEnumerable<TResult>>((modifiedSql, modifiedParameters) => Connection.QueryAsync<TResult>(modifiedSql, modifiedParameters),
+                sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
+        }
 
+        /// <summary>
+        /// Runs a query returning a single result
+        /// </summary>
+        /// <typeparam name="TResult">The result type</typeparam>
+        /// <param name="sql">The SQL query string</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="sql"/> execution</param>
+        /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="TResult"/></returns>
+        protected async Task<TResult> QueryFirstAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null)
+            where TResult : class
+        {
+            return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.QueryFirstOrDefaultAsync<TResult>(sql, modifiedParameters),
+                sql, parameters, intermediaryAction);
+        }
+
+        /// <summary>
+        /// Runs a query that selects a single value
+        /// </summary>
+        /// <typeparam name="TResult">The result value type</typeparam>
+        /// <param name="sql">The SQL query string</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="sql"/> execution</param>
+        /// <returns>The single query value</returns>
+        protected async Task<TResult> QueryScalarAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null)
+        {
+            return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.ExecuteScalarAsync<TResult>(sql, modifiedParameters),
+                sql, parameters, intermediaryAction);
+        }
+
+        /// <summary>
+        /// Executes a stored procedure
+        /// </summary>
+        /// <param name="procedureName">The procedure name to execute</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the procedure execution</param>
+        /// <returns>The <see cref="CommandExecutionResult"/></returns>
+        protected async Task<CommandExecutionResult> ExecuteProcedureAsync(string procedureName, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
+        {
+            return await ExecuteAsyncBase(() => Connection.ExecuteAsync(procedureName, parameters, commandType: CommandType.StoredProcedure),
+                procedureName, parameters, intermediaryAction);
+        }
+
+        /// <summary>
+        /// Executes an operation meant to affect multiple rows
+        /// </summary>
+        /// <param name="sql">The SQL query string</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="sql"/> execution</param>
+        /// <returns>The number of affected rows</returns>
+        protected async Task<CommandExecutionResult> ExecuteAsync(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
+        {
+            return await ExecuteAsyncBase(() => Connection.ExecuteAsync(sql, parameters), sql, parameters, intermediaryAction);
+        }
+
+        /// <summary>
+        /// Executes an operation meant to affect a single row. This is used only when the record is known to exist and failure to operate upon it specifically
+        /// results in an incomplete operation.
+        /// </summary>
+        /// <param name="sql">The SQL query string</param>
+        /// <param name="parameters">The named parameters to feed the query with</param>
+        /// <param name="intermediaryAction">The action to run prior to the <paramref name="sql"/> execution</param>
+        /// <exception cref="IncompleteDatabaseOperationException"/>
+        protected async Task<CommandExecutionResult> ExecuteSingleAsync(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
+        {
+            return await ExecuteAsyncBase(() => Connection.ExecuteAsync(sql, parameters), sql, parameters, intermediaryAction, rowsAffected =>
+            {
                 if (rowsAffected != 1)
                     throw new IncompleteDatabaseOperationException();
-
-                return rowsAffected;
-            }
-            catch (Exception e)
-            {
-                Connection.Close();
-                HandleException(e);
-                return default(int);
-            }
-        }
-
-        protected async Task<T> ExecuteScalarAsync<T>(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
-        {
-            try
-            {
-                intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSqlQuery(sql, parameters);
-                var value = await Connection.ExecuteScalarAsync<T>(sql, parameters);
-
-                return value;
-            }
-            catch (Exception e)
-            {
-                HandleException(e);
-                HandleRollback();
-                Connection.Close();
-                return default(T);
-            }
+            });
         }
 
         #region Query ListOptions Attachment
 
-        protected void AttachQueryOptions<TFilterable>(ref string sql, DynamicParameters parameters, ListOptions options) where TFilterable : class
+        /// <summary>
+        /// Edits the sql query by adding meta-filtering based on the parameters and their ability to be filtered
+        /// </summary>
+        /// <typeparam name="TFilterable">The filterable entity</typeparam>
+        /// <param name="sql">The sql to be modified</param>
+        /// <param name="parameters">The named parameters to use as searchable fields</param>
+        /// <param name="options">The <see cref="ListOptions"/> to add to the final SQL query</param>
+        protected void AttachQueryOptions<TFilterable>(ref string sql, DynamicParameters parameters, ListOptions options)
+            where TFilterable : class
         {
             if (options == null)
             {
@@ -173,7 +222,14 @@ namespace Dapper.SimpleWrapper
             QueryBuilder.AttachSizeOption(ref sql, options.Size);
         }
 
-        protected void AttachSortOptions<TFilterable>(ref string sql, IEnumerable<SortByClause> sortingClauses) where TFilterable : class
+        /// <summary>
+        /// Edits the sql query by adding sorting based on sortable properties of <see cref="TFilterable"/>
+        /// </summary>
+        /// <typeparam name="TFilterable">The filterable entity</typeparam>
+        /// <param name="sql">The sql to be modified</param>
+        /// <param name="sortingClauses">The sorting clauses</param>
+        protected void AttachSortOptions<TFilterable>(ref string sql, IEnumerable<SortByClause> sortingClauses)
+            where TFilterable : class
         {
             var sortablePropertyInfo = TypeInfoExtractor.GetPropertiesByAttribute<TFilterable, SortableAttribute>().ToList();
             var propertyNameAttributes = sortablePropertyInfo.ToDictionary(k => k.Name.ToUpper(), v => v.GetCustomAttribute(typeof(SortableAttribute)) as SortableAttribute);
@@ -204,7 +260,15 @@ namespace Dapper.SimpleWrapper
             sql += $"\n ORDER BY {sortQuerySegment}";
         }
 
-        protected void AttachSearchOptions<TFilterable>(ref string sql, string term, DynamicParameters parameters) where TFilterable : class
+        /// <summary>
+        /// Edits the sql query by adding search on searchable properties of <see cref="TFilterable"/>
+        /// </summary>
+        /// <typeparam name="TFilterable">The filterable entity</typeparam>
+        /// <param name="sql">The sql to be modified</param>
+        /// <param name="term">The search term</param>
+        /// <param name="parameters">The parameters object to use to include the additional search parameters</param>
+        protected void AttachSearchOptions<TFilterable>(ref string sql, string term, DynamicParameters parameters)
+            where TFilterable : class
         {
             var searchablePropertyInfo = TypeInfoExtractor.GetPropertiesByAttribute<TFilterable, SearchableAttribute>().ToList();
             var propertyNameAttributes = searchablePropertyInfo.ToDictionary(k => k.Name.ToUpper(), v => v.GetCustomAttribute(typeof(SearchableAttribute)) as SearchableAttribute);
@@ -242,37 +306,36 @@ namespace Dapper.SimpleWrapper
 
         #endregion
 
-        protected async Task<TResult> QueryFirstAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null) where TResult : class
-        {
-            try
-            {
-                intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSqlQuery(sql, parameters);
-                return await Connection.QueryFirstOrDefaultAsync<TResult>(sql, parameters);
-            }
-            catch (Exception e)
-            {
-                Connection.Close();
-                HandleException(e);
-                return default(TResult);
-            }
-        }
-
+        /// <summary>
+        /// Handles the exception during query execution
+        /// </summary>
+        /// <param name="e">The exception</param>
         protected abstract void HandleException(Exception e);
+
+        /// <summary>
+        /// Handles the rollback during query execution
+        /// </summary>
         protected abstract void HandleRollback();
+
+        /// <summary>
+        /// Logs the sql operation prior to its execution
+        /// </summary>
+        /// <param name="statement">The sql statement</param>
+        /// <param name="parameters">The parameters passed</param>
         protected abstract void LogSqlOperation(string statement, DynamicParameters parameters);
+
+        /// <summary>
+        /// Logs the sql query prior to its execution
+        /// </summary>
+        /// <param name="statement">The sql statement</param>
+        /// <param name="parameters">The parameters passed</param>
         protected abstract void LogSqlQuery(string statement, DynamicParameters parameters);
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    // here you add your dispose logic for resources.
+            if (!_disposed && disposing)
                     Connection.Dispose();
-                }
-            }
+
             _disposed = true;
         }
 
