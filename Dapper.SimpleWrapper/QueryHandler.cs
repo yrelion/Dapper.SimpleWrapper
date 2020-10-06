@@ -278,7 +278,7 @@ namespace Dapper.SimpleWrapper
 
             foreach (SortByClause clause in sortingList)
             {
-                var fieldName = propertyNameAttributes[clause.Path.ToUpper()].FieldName;
+                var fieldName = propertyNameAttributes[clause.Path.ToUpper()]?.FieldName;
                 var propertyName = sortablePropertyInfo.FirstOrDefault(x => string.Equals(x.Name, clause.Path, StringComparison.CurrentCultureIgnoreCase))?.Name;
 
                 var field = fieldName == null ? propertyName?.ToUpper() : fieldName.ToUpper();
