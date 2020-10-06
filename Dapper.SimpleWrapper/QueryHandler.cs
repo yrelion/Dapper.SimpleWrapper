@@ -37,12 +37,12 @@ namespace Dapper.SimpleWrapper
         /// <param name="queryOptionsAction">The action to run upon the query prior to the <see cref="operation"/> execution that manipulates the <see cref="sql"/></param>
         /// <returns>The <see cref="TResult"/></returns>
         private async Task<TResult> QueryAsyncBase<TSubject, TResult>(Func<string, DynamicParameters, Task<TResult>> operation, string sql, DynamicParameters parameters = null,
-            Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null, Action queryOptionsAction = null)
+            Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null, Func<string> queryOptionsAction = null)
         {
             try
             {
                 intermediaryAction?.Invoke(parameters ?? new DynamicParameters(), options);
-                queryOptionsAction?.Invoke();
+                sql = queryOptionsAction?.Invoke();
                 LogSqlQuery(sql, parameters);
                 return await operation(sql, parameters);
             }
@@ -140,6 +140,9 @@ namespace Dapper.SimpleWrapper
                 sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
 
             var splitSql = sql.Substring(sql.IndexOf("from", StringComparison.OrdinalIgnoreCase));
+
+            QueryBuilder.RemoveQueryClauses(ref splitSql, new[] { "order by", "offset", "fetch" });
+
             var countSql = $"SELECT COUNT({0}) {splitSql}";
 
             var count = await Connection.ExecuteScalarAsync<int>(countSql, parameters);
@@ -227,7 +230,7 @@ namespace Dapper.SimpleWrapper
         /// <param name="sql">The sql to be modified</param>
         /// <param name="parameters">The named parameters to use as searchable fields</param>
         /// <param name="options">The <see cref="ListOptions"/> to add to the final SQL query</param>
-        protected void AttachQueryOptions<TFilterable>(ref string sql, DynamicParameters parameters, ListOptions options)
+        protected string AttachQueryOptions<TFilterable>(ref string sql, DynamicParameters parameters, ListOptions options)
             where TFilterable : class
         {
             if (options == null)
@@ -237,13 +240,15 @@ namespace Dapper.SimpleWrapper
                 QueryBuilder.AttachPagingOption(ref sql, defaultOptions.Page, defaultOptions.Size);
                 QueryBuilder.AttachSizeOption(ref sql, defaultOptions.Size);
 
-                return;
+                return sql;
             }
 
             AttachSearchOptions<TFilterable>(ref sql, options.Search, parameters);
             AttachSortOptions<TFilterable>(ref sql, options.GetSortings());
             QueryBuilder.AttachPagingOption(ref sql, options.Page, options.Size);
             QueryBuilder.AttachSizeOption(ref sql, options.Size);
+
+            return sql;
         }
 
         /// <summary>

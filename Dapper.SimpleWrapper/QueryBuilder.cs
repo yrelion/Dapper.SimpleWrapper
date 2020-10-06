@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Dapper.SimpleWrapper
@@ -39,6 +40,16 @@ namespace Dapper.SimpleWrapper
         public static void AttachSizeOption(ref string sql, int size)
         {
             sql += $"\n FETCH NEXT {size} ROWS ONLY";
+        }
+
+        public static void RemoveQueryClauses(ref string query, IEnumerable<string> clauseNames)
+        {
+            foreach (var clauseName in clauseNames)
+            {
+                var index = query.IndexOf(clauseName, StringComparison.OrdinalIgnoreCase);
+                if (index < 0) return;
+                query = query.Remove(index);
+            }
         }
     }
 }
