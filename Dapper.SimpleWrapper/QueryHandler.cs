@@ -120,7 +120,7 @@ namespace Dapper.SimpleWrapper
             try
             {
                 intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSqlOperation(sql, parameters);
+                LogSqlQuery(sql, parameters);
                 var value = await Connection.ExecuteScalarAsync<T>(sql, parameters);
 
                 return value;
@@ -239,14 +239,10 @@ namespace Dapper.SimpleWrapper
             }
         }
 
-        #region Post-Exception Processes
-
         protected abstract void HandleException(Exception e);
         protected abstract void HandleRollback();
         protected abstract void LogSqlOperation(string statement, DynamicParameters parameters);
         protected abstract void LogSqlQuery(string statement, DynamicParameters parameters);
-
-        #endregion
 
         protected virtual void Dispose(bool disposing)
         {
