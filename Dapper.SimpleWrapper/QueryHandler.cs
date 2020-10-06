@@ -19,9 +19,9 @@ namespace Dapper.SimpleWrapper
         protected IDbConnection Connection { get; }
         protected IDbTransaction Transaction { get; }
 
-        protected QueryHandler(IDatabaseContext databaseContext)
+        protected QueryHandler(IDatabaseContext<IDatabaseSettings> databaseContext)
         {
-            Transaction = databaseContext.Transaction;
+            Transaction = databaseContext.TransactionContext.Transaction;
             Connection = databaseContext.Connection;
         }
 

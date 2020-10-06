@@ -2,10 +2,9 @@
 
 namespace Dapper.SimpleWrapper.Abstractions
 {
-    public interface IConnectionFactory
+    public interface IConnectionFactory<TSettings> where TSettings : IDatabaseSettings
     {
-        IDatabaseSettings Settings { get; }
         IDbConnection Create(string connectionString);
-        IConnectionFactory WithSettings(IDatabaseSettings settings);
+        IDbConnection CreateFromSettings();
     }
 }

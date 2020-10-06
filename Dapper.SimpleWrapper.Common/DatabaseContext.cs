@@ -1,32 +1,33 @@
 ﻿using System;
 using System.Data;
+using System.Runtime.CompilerServices;
+using System.Transactions;
 using Dapper.SimpleWrapper.Abstractions;
 
 namespace Dapper.SimpleWrapper.Common
 {
-    public abstract class DatabaseContext : IDatabaseContext
+    public abstract class DatabaseContext<TSettings> : IDatabaseContext<TSettings> where TSettings : IDatabaseSettings
     {
         private bool _disposed;
 
         public IDbConnection Connection { get; set; }
-        public IDbTransaction Transaction { get; set; }
+        public ITransactionContext TransactionContext { get; set; }
 
-        public IDbTransaction BeginTransaction()
+        protected DatabaseContext(IConnectionFactory<TSettings> factory)
         {
-            if (Connection.State != ConnectionState.Open)
-            {
-                Connection.Open();
-                Transaction = Connection.BeginTransaction();
-            }
-
-            return Transaction;
+            TransactionContext = new TransactionContext();
+            Connection = Connection ?? factory.CreateFromSettings();
         }
+
+        public abstract ITransactionContext BeginTransaction([CallerMemberName] string actionOriginator = null);
+        public abstract TransactionStatus TryCommitTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
+        public abstract TransactionStatus RollbackTransaction(bool suppressOriginator = false, [CallerMemberName] string actionOriginator = null);
 
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposed && disposing)
                 Connection.Dispose();
-            
+
             _disposed = true;
         }
 

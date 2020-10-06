@@ -3,16 +3,10 @@ using Dapper.SimpleWrapper.Abstractions;
 
 namespace Dapper.SimpleWrapper.Common
 {
-    public abstract class ConnectionFactory : IConnectionFactory
+    public abstract class ConnectionFactoryBase<TSettings> : IConnectionFactory<TSettings> where TSettings : class, IDatabaseSettings, new()
     {
         public IDatabaseSettings Settings { get; set; }
-
         public abstract IDbConnection Create(string connectionString);
-
-        public IConnectionFactory WithSettings(IDatabaseSettings settings)
-        {
-            Settings = settings;
-            return this;
-        }
+        public abstract IDbConnection CreateFromSettings();
     }
 }
