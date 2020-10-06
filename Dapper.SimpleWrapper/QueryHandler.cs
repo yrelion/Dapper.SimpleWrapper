@@ -75,6 +75,25 @@ namespace Dapper.SimpleWrapper
             return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.QueryFirstOrDefaultAsync<TResult>(sql, modifiedParameters), sql, parameters, intermediaryAction);
         }
 
+        protected async Task<DynamicParameters> ExecuteProcedureAsync(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
+        {
+            try
+            {
+                intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
+                LogSqlOperation(sql, parameters);
+                await Connection.ExecuteAsync(sql, parameters, commandType: CommandType.StoredProcedure);
+
+                return parameters;
+            }
+            catch (Exception e)
+            {
+                HandleException(e);
+                HandleRollback();
+                Connection.Close();
+                return null;
+            }
+        }
+
         protected async Task<int> ExecuteAsync(string sql, DynamicParameters parameters = null, Action<DynamicParameters> intermediaryAction = null)
         {
             try
