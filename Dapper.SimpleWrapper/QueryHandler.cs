@@ -49,7 +49,7 @@ namespace Dapper.SimpleWrapper
 
                 AttachQueryOptions<TSubject>(ref sql, parameters, options);
 
-                LogSql(sql, parameters);
+                LogSqlQuery(sql, parameters);
                 return await operation(sql, parameters);
             }
             catch (Exception e)
@@ -80,7 +80,7 @@ namespace Dapper.SimpleWrapper
             try
             {
                 intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSql(sql, parameters);
+                LogSqlOperation(sql, parameters);
                 var rowsAffected = await Connection.ExecuteAsync(sql, parameters);
 
                 return rowsAffected;
@@ -99,7 +99,7 @@ namespace Dapper.SimpleWrapper
             try
             {
                 intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSql(sql, parameters);
+                LogSqlOperation(sql, parameters);
                 var rowsAffected = await Connection.ExecuteAsync(sql, parameters);
 
                 if (rowsAffected != 1)
@@ -120,7 +120,7 @@ namespace Dapper.SimpleWrapper
             try
             {
                 intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSql(sql, parameters);
+                LogSqlOperation(sql, parameters);
                 var value = await Connection.ExecuteScalarAsync<T>(sql, parameters);
 
                 return value;
@@ -228,7 +228,7 @@ namespace Dapper.SimpleWrapper
             try
             {
                 intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
-                LogSql(sql, parameters);
+                LogSqlQuery(sql, parameters);
                 return await Connection.QueryFirstOrDefaultAsync<TResult>(sql, parameters);
             }
             catch (Exception e)
@@ -243,7 +243,8 @@ namespace Dapper.SimpleWrapper
 
         protected abstract void HandleException(Exception e);
         protected abstract void HandleRollback();
-        protected abstract void LogSql(string statement, DynamicParameters parameters);
+        protected abstract void LogSqlOperation(string statement, DynamicParameters parameters);
+        protected abstract void LogSqlQuery(string statement, DynamicParameters parameters);
 
         #endregion
 
