@@ -37,12 +37,14 @@ namespace Dapper.SimpleWrapper
         /// <param name="queryOptionsAction">The action to run upon the query prior to the <see cref="operation"/> execution that manipulates the <see cref="sql"/></param>
         /// <returns>The <see cref="TResult"/></returns>
         private async Task<TResult> QueryAsyncBase<TSubject, TResult>(Func<string, DynamicParameters, Task<TResult>> operation, string sql, DynamicParameters parameters = null,
-            Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null, Func<string> queryOptionsAction = null)
+            Action<DynamicParameters, ListOptions> intermediaryAction = null, ListOptions options = null, Func<DynamicParameters, string> queryOptionsAction = null)
         {
             try
             {
-                intermediaryAction?.Invoke(parameters ?? new DynamicParameters(), options);
-                sql = queryOptionsAction?.Invoke();
+                parameters = parameters ?? new DynamicParameters();
+
+                intermediaryAction?.Invoke(parameters, options);
+                sql = queryOptionsAction?.Invoke(parameters);
                 LogSqlQuery(sql, parameters);
                 return await operation(sql, parameters);
             }
@@ -68,7 +70,9 @@ namespace Dapper.SimpleWrapper
         {
             try
             {
-                intermediaryAction?.Invoke(parameters ?? new DynamicParameters());
+                parameters = parameters ?? new DynamicParameters();
+
+                intermediaryAction?.Invoke(parameters);
                 LogSqlOperation(command, parameters);
                 var rowsAffected = await operation.Invoke();
                 postExecutionAction?.Invoke(rowsAffected);
@@ -103,7 +107,7 @@ namespace Dapper.SimpleWrapper
             where TResult : class
         {
             return await QueryAsyncBase<TResult, IEnumerable<TResult>>(function,
-                sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
+                sql, parameters, intermediaryAction, options, dynamicParameters => AttachQueryOptions<TResult>(ref sql, dynamicParameters, options));
         }
 
         /// <summary>
@@ -120,7 +124,7 @@ namespace Dapper.SimpleWrapper
             where TResult : class
         {
             return await QueryAsyncBase<TResult, IEnumerable<TResult>>((modifiedSql, modifiedParameters) => Connection.QueryAsync<TResult>(modifiedSql, modifiedParameters),
-                sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
+                sql, parameters, intermediaryAction, options, dynamicParameters => AttachQueryOptions<TResult>(ref sql, dynamicParameters, options));
         }
 
         /// <summary>
@@ -137,7 +141,7 @@ namespace Dapper.SimpleWrapper
             where TResult : class
         {
             var items = await QueryAsyncBase<TResult, IEnumerable<TResult>>((modifiedSql, modifiedParameters) => Connection.QueryAsync<TResult>(modifiedSql, modifiedParameters),
-                sql, parameters, intermediaryAction, options, () => AttachQueryOptions<TResult>(ref sql, parameters, options));
+                sql, parameters, intermediaryAction, options, dynamicParameters => AttachQueryOptions<TResult>(ref sql, dynamicParameters, options));
 
             var splitSql = sql.Substring(sql.IndexOf("from", StringComparison.OrdinalIgnoreCase));
 
