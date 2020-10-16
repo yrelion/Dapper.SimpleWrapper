@@ -59,7 +59,7 @@ services.AddSingleton<IConnectionFactory<CustomerDatabaseSettings>, ConnectionFa
 public interface ICustomerDatabaseContext : IDatabaseContext<CustomerDatabaseSettings> { }
 ```
 
-1. Define the class which implements the newly created interface (`ICustomerDatabaseContext`) and extends the `DbContext`. Subsequently add it as a scoped service to your IoC container.
+4. Define the class which implements the newly created interface (`ICustomerDatabaseContext`) and extends the `DbContext`. Subsequently add it as a scoped service to your IoC container.
 
 ```csharp
 public class CustomerDbContext : DbContext<CustomerDatabaseSettings>, ICustomerDatabaseContext
