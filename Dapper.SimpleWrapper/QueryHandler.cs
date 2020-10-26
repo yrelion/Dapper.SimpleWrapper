@@ -44,7 +44,10 @@ namespace Dapper.SimpleWrapper
                 parameters = parameters ?? new DynamicParameters();
 
                 intermediaryAction?.Invoke(parameters, options);
-                sql = queryOptionsAction?.Invoke(parameters);
+
+                if(queryOptionsAction != null)
+                    sql = queryOptionsAction?.Invoke(parameters);
+
                 LogSqlQuery(sql, parameters);
                 return await operation(sql, parameters);
             }
@@ -165,7 +168,7 @@ namespace Dapper.SimpleWrapper
         protected async Task<TResult> QueryFirstAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null)
             where TResult : class
         {
-            return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.QueryFirstOrDefaultAsync<TResult>(sql, modifiedParameters),
+            return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.QueryFirstOrDefaultAsync<TResult>(modifiedSql, modifiedParameters),
                 sql, parameters, intermediaryAction);
         }
 
@@ -179,7 +182,7 @@ namespace Dapper.SimpleWrapper
         /// <returns>The single query value</returns>
         protected async Task<TResult> QueryScalarAsync<TResult>(string sql, DynamicParameters parameters = null, Action<DynamicParameters, ListOptions> intermediaryAction = null)
         {
-            return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.ExecuteScalarAsync<TResult>(sql, modifiedParameters),
+            return await QueryAsyncBase<TResult, TResult>((modifiedSql, modifiedParameters) => Connection.ExecuteScalarAsync<TResult>(modifiedSql, modifiedParameters),
                 sql, parameters, intermediaryAction);
         }
 
