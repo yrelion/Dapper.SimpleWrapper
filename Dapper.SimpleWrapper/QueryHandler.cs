@@ -53,7 +53,6 @@ namespace Dapper.SimpleWrapper
             }
             catch (Exception e)
             {
-                Connection.Close();
                 HandleException(e);
                 return default(TResult);
             }
@@ -90,7 +89,6 @@ namespace Dapper.SimpleWrapper
             {
                 HandleException(e);
                 HandleRollback();
-                Connection.Close();
                 return null;
             }
         }
