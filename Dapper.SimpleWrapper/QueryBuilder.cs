@@ -47,7 +47,7 @@ namespace Dapper.SimpleWrapper
             foreach (var clauseName in clauseNames)
             {
                 var index = query.IndexOf(clauseName, StringComparison.OrdinalIgnoreCase);
-                if (index < 0) return;
+                if (index < 0) continue;
                 query = query.Remove(index);
             }
         }
