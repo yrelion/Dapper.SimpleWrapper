@@ -242,6 +242,7 @@ namespace Dapper.SimpleWrapper
             {
                 var defaultOptions = new ListOptions();
 
+                AttachSortOptions<TFilterable>(ref sql, defaultOptions.GetSortings());
                 QueryBuilder.AttachPagingOption(ref sql, defaultOptions.Page, defaultOptions.Size);
                 QueryBuilder.AttachSizeOption(ref sql, defaultOptions.Size);
 
@@ -275,6 +276,14 @@ namespace Dapper.SimpleWrapper
 
             // keep only sortable fields
             sortingList.RemoveAll(s => !propertyNameAttributes.Any(f => f.Key.ToUpper().Equals(s.Path.ToUpper())));
+
+            // include the first default sorting if any are specified
+            var defaultPropertyAttribute = propertyNameAttributes.FirstOrDefault(x => x.Value.IsDefault);
+            if (!defaultPropertyAttribute.Equals(default(KeyValuePair<string, SortableAttribute>)))
+            {
+                var defaultSortingClause = new SortByClause(defaultPropertyAttribute.Key, defaultPropertyAttribute.Value.DefaultDirection);
+                sortingList.Add(defaultSortingClause);
+            }
 
             if (!sortingList.Any())
                 return;

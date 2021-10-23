@@ -18,7 +18,15 @@ namespace Dapper.SimpleWrapper.Common
     /// </summary>
     public class SortableAttribute : FilterAttributeBase
     {
-        public SortableAttribute(string fieldName = null) : base(fieldName) { }
+        public string DefaultDirection { get; }
+        public bool IsDefault { get; }
+
+        public SortableAttribute(string fieldName = null, bool isDefault = false, string defaultDirection = "ASC") :
+            base(fieldName)
+        {
+            IsDefault = isDefault;
+            DefaultDirection = defaultDirection;
+        }
     }
 
     /// <summary>
